@@ -301,7 +301,7 @@ pub(crate) fn compute_signal(
         }
         SignalKind::CrossGradient => {
             let other = other_field.ok_or(OrchestratorError::InvalidInput(
-                "cross-gradient requires two fields (provide at least two --gene values)",
+                "cross-gradient requires two fields (provide at least two values in --genes)",
             ))?;
             let grid = kcore::GridIndex::build(domain)?;
             let plan = kcore::TilePlan::new(

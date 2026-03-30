@@ -21,9 +21,9 @@ pub(crate) use signal::{build_height_spec, percentile_from_sorted};
 
 pub(crate) fn run_pipeline(args: RunArgs) -> Result<(), OrchestratorError> {
     let t_total = Instant::now();
-    if args.gene.is_empty() {
+    if args.genes.is_empty() {
         return Err(OrchestratorError::InvalidInput(
-            "at least one --gene is required",
+            "at least one gene is required in --genes",
         ));
     }
 

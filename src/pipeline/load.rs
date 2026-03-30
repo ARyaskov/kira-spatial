@@ -34,7 +34,7 @@ pub(crate) fn compute_signal_dense_from_dataset(
         id: domain_id(io_domain.len()),
         bins: io_domain.len(),
     };
-    for gene in &args.gene {
+    for gene in &args.genes {
         let _ = KField::from_gene(&field_csr, gene, &field_domain)?;
     }
 
@@ -58,7 +58,7 @@ pub(crate) fn compute_signal_dense_from_dataset(
 
     let mut core_values = vec![0.0_f32; core_domain.len()];
     let mut per_gene_fields = Vec::<(String, kcore::Field<'_>)>::new();
-    for gene in &args.gene {
+    for gene in &args.genes {
         let gene_id = find_gene_id(features, gene)?;
         let gene_field = kcore::build_gene_field(
             &core_domain,
@@ -77,7 +77,7 @@ pub(crate) fn compute_signal_dense_from_dataset(
     let signal_sparse = if args.signal == SignalKind::CrossGradient {
         if per_gene_fields.len() < 2 {
             return Err(OrchestratorError::InvalidInput(
-                "cross-gradient requires at least two --gene values",
+                "cross-gradient requires at least two values in --genes",
             ));
         }
         compute_signal(
@@ -116,9 +116,9 @@ pub(crate) fn compute_signal_dense_from_feature_slice(
         )));
     };
 
-    let mut genes = args.gene.iter();
+    let mut genes = args.genes.iter();
     let first_gene = genes.next().ok_or(OrchestratorError::InvalidInput(
-        "at least one --gene is required",
+        "at least one gene is required in --genes",
     ))?;
 
     let cache_path = feature_slice_cache_path(&paths.parquet_path);
@@ -236,7 +236,7 @@ pub(crate) fn compute_signal_dense_from_feature_slice(
     let signal_sparse = if args.signal == SignalKind::CrossGradient {
         if per_gene_sparse.len() < 2 {
             return Err(OrchestratorError::InvalidInput(
-                "cross-gradient requires at least two --gene values",
+                "cross-gradient requires at least two values in --genes",
             ));
         }
         let a = kcore::Field::new(&core_domain, per_gene_sparse[0].1.clone())?;
@@ -267,9 +267,9 @@ pub(crate) fn compute_signal_dense_from_feature_slice_via_io(
 ) -> Result<(GridMapping, Vec<f32>, Vec<(String, Vec<f32>)>), OrchestratorError> {
     let t_total = Instant::now();
     eprintln!("[timing] fallback=io_only");
-    let mut genes = args.gene.iter();
+    let mut genes = args.genes.iter();
     let first_gene = genes.next().ok_or(OrchestratorError::InvalidInput(
-        "at least one --gene is required",
+        "at least one gene is required in --genes",
     ))?;
     let first =
         kira_spatial_io::load_feature_slice_gene(&args.h5, first_gene, LoadConfig::default())?;
@@ -301,7 +301,7 @@ pub(crate) fn compute_signal_dense_from_feature_slice_via_io(
     let signal_sparse = if args.signal == SignalKind::CrossGradient {
         if per_gene_sparse.len() < 2 {
             return Err(OrchestratorError::InvalidInput(
-                "cross-gradient requires at least two --gene values",
+                "cross-gradient requires at least two values in --genes",
             ));
         }
         let a = kcore::Field::new(&core_domain, per_gene_sparse[0].1.clone())?;

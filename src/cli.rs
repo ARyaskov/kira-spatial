@@ -24,9 +24,9 @@ pub(crate) struct RunArgs {
     /// Path to input .h5 file or directory containing feature_slice.h5 + spatial/
     #[arg(long)]
     pub(crate) h5: PathBuf,
-    /// Gene symbol (repeat --gene to aggregate multiple genes).
-    #[arg(long, required = true)]
-    pub(crate) gene: Vec<String>,
+    /// Comma-separated gene symbols to aggregate, for example: EPCAM,KRT19,MSLN.
+    #[arg(long, required = true, value_delimiter = ',')]
+    pub(crate) genes: Vec<String>,
     /// Output directory for all generated artifacts.
     #[arg(long)]
     pub(crate) out_dir: PathBuf,

@@ -84,27 +84,66 @@ pub(crate) fn detect_feature_slice_paths(path: &Path) -> Option<FeatureSlicePath
         }
         (path.to_path_buf(), h5)
     } else {
-        let file_name = path.file_name()?.to_str()?.to_ascii_lowercase();
-        if file_name != "feature_slice.h5" {
+        if !is_feature_slice_h5_name(path.file_name()?.to_str()?) {
             return None;
         }
         let root = path.parent()?.to_path_buf();
         (root, path.to_path_buf())
     };
 
-    let parquet_path = [
-        root_dir.join("barcode_mappings.parquet"),
-        root_dir.join("barcode_mapping.parquet"),
-        root_dir.join("spatial").join("barcode_mappings.parquet"),
-        root_dir.join("spatial").join("barcode_mapping.parquet"),
-    ]
-    .into_iter()
-    .find(|p| p.is_file())?;
+    let parquet_path = parquet_candidates(&h5_path, &root_dir)
+        .into_iter()
+        .find(|p| p.is_file())?;
 
     Some(FeatureSlicePaths {
         h5_path,
         parquet_path,
     })
+}
+
+fn is_feature_slice_h5_name(file_name: &str) -> bool {
+    let lower = file_name.to_ascii_lowercase();
+    lower == "feature_slice.h5" || lower.ends_with("_feature_slice.h5")
+}
+
+fn paired_barcode_mapping_prefix(h5_path: &Path) -> Option<String> {
+    let stem = h5_path.file_stem()?.to_str()?;
+    let lower = stem.to_ascii_lowercase();
+    let suffix = "_feature_slice";
+    if lower == "feature_slice" {
+        return None;
+    }
+    if !lower.ends_with(suffix) {
+        return None;
+    }
+    let prefix_len = stem.len().checked_sub(suffix.len())?;
+    if prefix_len == 0 {
+        return None;
+    }
+    Some(stem[..prefix_len].to_string())
+}
+
+fn parquet_candidates(h5_path: &Path, root_dir: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::with_capacity(6);
+    if let Some(prefix) = paired_barcode_mapping_prefix(h5_path) {
+        candidates.push(root_dir.join(format!("{prefix}_barcode_mappings.parquet")));
+        candidates.push(root_dir.join(format!("{prefix}_barcode_mapping.parquet")));
+        candidates.push(
+            root_dir
+                .join("spatial")
+                .join(format!("{prefix}_barcode_mappings.parquet")),
+        );
+        candidates.push(
+            root_dir
+                .join("spatial")
+                .join(format!("{prefix}_barcode_mapping.parquet")),
+        );
+    }
+    candidates.push(root_dir.join("barcode_mappings.parquet"));
+    candidates.push(root_dir.join("barcode_mapping.parquet"));
+    candidates.push(root_dir.join("spatial").join("barcode_mappings.parquet"));
+    candidates.push(root_dir.join("spatial").join("barcode_mapping.parquet"));
+    candidates
 }
 
 pub(crate) fn feature_slice_cache_path(parquet_path: &Path) -> PathBuf {
@@ -950,4 +989,34 @@ fn read_u32_vec(data: &[u8], off: &mut usize, n: usize) -> Result<Vec<u32>, Orch
         out.push(u32::from_le_bytes(arr));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_feature_slice_h5_name, paired_barcode_mapping_prefix};
+    use std::path::Path;
+
+    #[test]
+    fn accepts_prefixed_feature_slice_name() {
+        assert!(is_feature_slice_h5_name(
+            "Visium_HD_3prime_Human_Pancreatic_Cancer_feature_slice.h5"
+        ));
+        assert!(is_feature_slice_h5_name("feature_slice.h5"));
+        assert!(!is_feature_slice_h5_name(
+            "Visium_HD_3prime_Human_Pancreatic_Cancer.h5"
+        ));
+    }
+
+    #[test]
+    fn derives_prefixed_barcode_mapping_name() {
+        let path = Path::new("Visium_HD_3prime_Human_Pancreatic_Cancer_feature_slice.h5");
+        assert_eq!(
+            paired_barcode_mapping_prefix(path).as_deref(),
+            Some("Visium_HD_3prime_Human_Pancreatic_Cancer")
+        );
+        assert_eq!(
+            paired_barcode_mapping_prefix(Path::new("feature_slice.h5")),
+            None
+        );
+    }
 }
